@@ -1,0 +1,32 @@
+# Load Az Storage .NET SDK
+Add-Type -AssemblyName "Microsoft.WindowsAzure.Storage"
+
+# Set variables
+$resourceGroupName = '<ReplaceThisWithRgName>'
+$storageAccountName = '<ReplaceThisWithSAName>'
+$fileShareName = '<ReplaceThisWithFSName>'
+$filePath = '<ReplaceThisWithFilePath>'
+
+# Get storage key and context
+$key = (Get-AzStorageAccountKey -ResourceGroupName $resourceGroupName -Name $storageAccountName)[0].Value
+$context = New-AzStorageContext -StorageAccountName $storageAccountName -StorageAccountKey $key
+
+# Use Az Storage .NET SDK to construct CloudFileClient manually
+$cloudStorageAccount = [Microsoft.WindowsAzure.Storage.CloudStorageAccount]::Parse("DefaultEndpointsProtocol=https;AccountName=$storageAccountName;AccountKey=$key;EndpointSuffix=core.windows.net")
+$client = $cloudStorageAccount.CreateCloudFileClient()
+$share = $client.GetShareReference($fileShareName)
+
+# Split the file path
+$dirPath = [System.IO.Path]::GetDirectoryName($filePath).Replace("\", "/")
+$fileName = [System.IO.Path]::GetFileName($filePath)
+
+# Traverse to file
+$rootDir = $share.GetRootDirectoryReference()
+$dir = $rootDir.GetDirectoryReference($dirPath)
+$file = $dir.GetFileReference($fileName)
+
+# Use async fetch metadata
+$file.FetchAttributesAsync().GetAwaiter().GetResult()
+
+# Output Base64 MD5 file hash
+$file.Properties.ContentMD5
